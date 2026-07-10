@@ -1,31 +1,29 @@
-export type FeatureItem = {
-  id: string;
-  week: string;
-  title: string;
-  summary: string;
-  tags: string[];
-};
+import Link from "next/link";
+import type { WeeklySummary } from "../lib/api";
+import { formatWeekLabel, getPlainTextPreview } from "../lib/format";
 
-export default function FeatureCard({ item }: { item: FeatureItem }) {
+export default function FeatureCard({ summary }: { summary: WeeklySummary }) {
   return (
-    <article className="pixel-shadow border-2 border-gold bg-navy p-6 sm:p-8">
-      <p className="font-pixel text-[10px] text-gold">{item.week}</p>
-      <h3 className="mt-4 text-lg font-bold leading-snug text-foreground sm:text-xl">
-        {item.title}
-      </h3>
-      <p className="mt-3 text-sm leading-relaxed text-foreground/70 sm:text-base">
-        {item.summary}
+    <article className="pixel-shadow flex flex-col gap-4 border-2 border-gold bg-navy p-6 sm:p-8">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-pixel text-[10px] text-gold">
+          {formatWeekLabel(summary.week_start)}
+        </p>
+        <span className="text-xs text-foreground/50">
+          参照記事 {summary.article_count} 件
+        </span>
+      </div>
+
+      <p className="text-sm leading-relaxed text-foreground/70 sm:text-base">
+        {getPlainTextPreview(summary.content)}
       </p>
-      <ul className="mt-4 flex flex-wrap gap-2">
-        {item.tags.map((tag) => (
-          <li
-            key={tag}
-            className="border border-navy-light px-2 py-1 text-[10px] text-foreground/60"
-          >
-            #{tag}
-          </li>
-        ))}
-      </ul>
+
+      <Link
+        href={`/features/${summary.id}`}
+        className="mt-auto w-fit bg-gold px-4 py-2 text-xs font-bold text-navy-dark transition-transform hover:-translate-y-0.5"
+      >
+        全文を読む &rarr;
+      </Link>
     </article>
   );
 }

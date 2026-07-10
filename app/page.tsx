@@ -1,21 +1,13 @@
 import Link from "next/link";
 import NewsCard from "./components/NewsCard";
-import FeatureCard, { type FeatureItem } from "./components/FeatureCard";
+import FeatureCard from "./components/FeatureCard";
 import GameCard, { type GameItem } from "./components/GameCard";
 import {
   getArticles,
   getNuggetsSchedule,
+  getWeeklySummaries,
   type ScheduleGame,
 } from "./lib/api";
-
-const LATEST_FEATURE: FeatureItem = {
-  id: "f1",
-  week: "WEEK 27 まとめ",
-  title: "西カンファレンス首位攻防、ナゲッツが勝率を五分に押し戻す一週間",
-  summary:
-    "今週3連戦を2勝1敗で終えたナゲッツ。ヨキッチのトリプルダブル量産、若手ローテーションの躍動、そして次節に向けた課題を振り返る。",
-  tags: ["ヨキッチ", "西カンファレンス", "週次レビュー"],
-};
 
 const UPCOMING_GAMES_LIMIT = 3;
 
@@ -47,10 +39,13 @@ function toGameItem(game: ScheduleGame): GameItem {
 }
 
 export default async function Home() {
-  const [latestNews, schedule] = await Promise.all([
+  const [latestNews, schedule, weeklySummaries] = await Promise.all([
     getArticles({ limit: 3 }),
     getNuggetsSchedule(),
+    getWeeklySummaries(),
   ]);
+
+  const latestSummary = weeklySummaries[0] ?? null;
 
   const todayStr = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Tokyo",
@@ -131,7 +126,13 @@ export default async function Home() {
               バックナンバー &rarr;
             </Link>
           </div>
-          <FeatureCard item={LATEST_FEATURE} />
+          {latestSummary ? (
+            <FeatureCard summary={latestSummary} />
+          ) : (
+            <p className="text-sm text-foreground/60">
+              週次まとめはまだありません。
+            </p>
+          )}
         </div>
       </section>
 
