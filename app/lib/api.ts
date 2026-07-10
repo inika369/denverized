@@ -406,13 +406,86 @@ async function fetchSummerLeagueGames(): Promise<ScheduleGame[]> {
   }
 }
 
+type ManualGame = {
+  id: number;
+  game_type: ScheduleGameType;
+  date: string;
+  jst_datetime: string;
+  home_team_name: string;
+  away_team_name: string;
+  home_team_abbr: string | null;
+  away_team_abbr: string | null;
+  is_home: boolean;
+  arena_name: string | null;
+  home_score: number | null;
+  away_score: number | null;
+  status: "scheduled" | "finished";
+};
+
+function toAbbreviation(name: string, abbr: string | null): string {
+  return abbr && abbr.trim() ? abbr : name.slice(0, 3).toUpperCase();
+}
+
+// Manually-tracked games (e.g. Summer League) recorded in Nuggets Feed's own
+// database, since the NBA feeds above don't reliably carry this data. These
+// take priority over NBA-sourced entries when merged in getNuggetsSchedule().
+export async function getManualGames(): Promise<ScheduleGame[]> {
+  try {
+    const res = await fetch(`${NUGGETS_FEED_URL}/api/games`, {
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch manual games: ${res.status}`);
+    }
+
+    const games: ManualGame[] = await res.json();
+
+    return games.map((g) => ({
+      gameId: String(g.id),
+      date: g.date,
+      homeTeam: {
+        name: g.home_team_name,
+        abbreviation: toAbbreviation(g.home_team_name, g.home_team_abbr),
+      },
+      awayTeam: {
+        name: g.away_team_name,
+        abbreviation: toAbbreviation(g.away_team_name, g.away_team_abbr),
+      },
+      homeScore: g.home_score,
+      awayScore: g.away_score,
+      isHome: g.is_home,
+      status: g.status,
+      arenaName: g.arena_name ?? "",
+      jstDateTime: g.jst_datetime,
+      gameType: g.game_type,
+    }));
+  } catch (error) {
+    console.error(
+      "[getManualGames] failed to fetch from Nuggets Feed:",
+      error
+    );
+    return [];
+  }
+}
+
 export async function getNuggetsSchedule(): Promise<ScheduleGame[]> {
-  const [mainGames, summerLeagueGames] = await Promise.all([
+  const [mainGames, summerLeagueGames, manualGames] = await Promise.all([
     fetchMainScheduleGames(),
     fetchSummerLeagueGames(),
+    getManualGames(),
   ]);
 
-  const games = [...summerLeagueGames, ...mainGames];
+  // Merge by gameId; manual (Nuggets Feed) entries are added last so they
+  // win over any NBA-sourced entry sharing the same id.
+  const gamesById = new Map<string, ScheduleGame>();
+  for (const game of [...mainGames, ...summerLeagueGames]) {
+    gamesById.set(game.gameId, game);
+  }
+  for (const game of manualGames) {
+    gamesById.set(game.gameId, game);
+  }
+
+  const games = [...gamesById.values()];
   games.sort((a, b) => a.date.localeCompare(b.date));
   return games;
 }
