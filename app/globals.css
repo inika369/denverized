@@ -1,26 +1,125 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --navy: #0e2240;
+  --navy-light: #16305a;
+  --navy-dark: #081426;
+  --gold: #fec524;
+  --gold-dark: #cc9d10;
+  --background: var(--navy-dark);
+  --foreground: #f5f5f0;
 }
 
 @theme inline {
+  --color-navy: var(--navy);
+  --color-navy-light: var(--navy-light);
+  --color-navy-dark: var(--navy-dark);
+  --color-gold: var(--gold);
+  --color-gold-dark: var(--gold-dark);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-pixel: var(--font-press-start-2p);
+  --font-sans: var(--font-noto-sans-jp);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Pixel-art rendering helpers */
+.pixelated {
+  image-rendering: pixelated;
+}
+
+/* Retro stepped border, reminiscent of 8bit UI frames */
+.pixel-border {
+  border: 4px solid var(--gold);
+  box-shadow:
+    0 0 0 4px var(--navy-dark),
+    0 0 0 8px var(--gold-dark);
+}
+
+.pixel-shadow {
+  box-shadow: 6px 6px 0 0 var(--gold-dark);
+}
+
+.pixel-shadow-sm {
+  box-shadow: 4px 4px 0 0 var(--navy-dark);
+}
+
+/* Scanline texture overlay for a retro screen feel */
+.crt-lines {
+  position: relative;
+}
+
+.crt-lines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.12) 0px,
+    rgba(0, 0, 0, 0.12) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* Rendered weekly-summary markdown content */
+.weekly-content h1 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.weekly-content h2 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--navy-light);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.weekly-content h1:first-child,
+.weekly-content h2:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.weekly-content h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.weekly-content p {
+  margin-bottom: 1rem;
+  line-height: 1.9;
+  color: rgba(245, 245, 240, 0.8);
+}
+
+.weekly-content ul {
+  margin: 0 0 1rem 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+  color: rgba(245, 245, 240, 0.8);
+}
+
+.weekly-content li {
+  margin-bottom: 0.5rem;
+  line-height: 1.8;
+}
+
+.weekly-content strong {
+  color: var(--gold);
+  font-weight: 700;
 }
