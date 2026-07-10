@@ -2,7 +2,11 @@ import Link from "next/link";
 import NewsCard from "./components/NewsCard";
 import FeatureCard, { type FeatureItem } from "./components/FeatureCard";
 import GameCard, { type GameItem } from "./components/GameCard";
-import { getArticles } from "./lib/api";
+import {
+  getArticles,
+  getNuggetsSchedule,
+  type ScheduleGame,
+} from "./lib/api";
 
 const LATEST_FEATURE: FeatureItem = {
   id: "f1",
@@ -13,35 +17,49 @@ const LATEST_FEATURE: FeatureItem = {
   tags: ["ヨキッチ", "西カンファレンス", "週次レビュー"],
 };
 
-const UPCOMING_GAMES: GameItem[] = [
-  {
-    id: "g1",
-    date: "07/10",
-    time: "10:00",
-    opponent: "レイカーズ",
-    homeAway: "HOME",
-    venue: "ボールアリーナ",
-  },
-  {
-    id: "g2",
-    date: "07/12",
-    time: "11:00",
-    opponent: "ウォリアーズ",
-    homeAway: "AWAY",
-    venue: "チェイス・センター",
-  },
-  {
-    id: "g3",
-    date: "07/14",
-    time: "09:30",
-    opponent: "サンズ",
-    homeAway: "HOME",
-    venue: "ボールアリーナ",
-  },
-];
+const UPCOMING_GAMES_LIMIT = 3;
+
+function toGameItem(game: ScheduleGame): GameItem {
+  const opponent = game.isHome ? game.awayTeam : game.homeTeam;
+  const [, month, day] = game.date.split("-");
+  const time = game.jstDateTime.match(/(\d{1,2}:\d{2})$/)?.[1] ?? "";
+
+  let result: string | undefined;
+  if (
+    game.status === "finished" &&
+    game.homeScore !== null &&
+    game.awayScore !== null
+  ) {
+    const nuggetsScore = game.isHome ? game.homeScore : game.awayScore;
+    const opponentScore = game.isHome ? game.awayScore : game.homeScore;
+    result = `${nuggetsScore > opponentScore ? "W" : "L"} ${nuggetsScore}-${opponentScore}`;
+  }
+
+  return {
+    id: game.gameId,
+    date: `${month}/${day}`,
+    time,
+    opponent: opponent.name,
+    homeAway: game.isHome ? "HOME" : "AWAY",
+    venue: game.arenaName,
+    result,
+  };
+}
 
 export default async function Home() {
-  const latestNews = await getArticles({ limit: 3 });
+  const [latestNews, schedule] = await Promise.all([
+    getArticles({ limit: 3 }),
+    getNuggetsSchedule(),
+  ]);
+
+  const todayStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+  }).format(new Date());
+
+  const upcomingGames = schedule
+    .filter((game) => game.date >= todayStr)
+    .slice(0, UPCOMING_GAMES_LIMIT)
+    .map(toGameItem);
 
   return (
     <div className="flex flex-col">
@@ -131,11 +149,17 @@ export default async function Home() {
               全試合を見る &rarr;
             </Link>
           </div>
-          <div className="flex flex-col gap-4">
-            {UPCOMING_GAMES.map((game) => (
-              <GameCard key={game.id} game={game} />
-            ))}
-          </div>
+          {upcomingGames.length > 0 ? (
+            <div className="flex flex-col gap-4">
+              {upcomingGames.map((game) => (
+                <GameCard key={game.id} game={game} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-foreground/60">
+              現在予定されている試合はありません。
+            </p>
+          )}
         </div>
       </section>
     </div>
