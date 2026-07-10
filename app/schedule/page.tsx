@@ -13,6 +13,7 @@ export default async function SchedulePage() {
   let losses = 0;
   for (const game of games) {
     if (
+      game.gameType !== "regular" ||
       game.status !== "finished" ||
       game.homeScore === null ||
       game.awayScore === null

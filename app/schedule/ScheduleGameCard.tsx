@@ -1,4 +1,13 @@
-import type { ScheduleGame, ScheduleTeam } from "../lib/api";
+import type { ScheduleGame, ScheduleGameType, ScheduleTeam } from "../lib/api";
+
+const GAME_TYPE_BADGES: Partial<
+  Record<ScheduleGameType, { label: string; className: string }>
+> = {
+  summer: { label: "サマーリーグ", className: "bg-sky-400 text-navy-dark" },
+  preseason: { label: "プレシーズン", className: "bg-gray-500 text-white" },
+  playoff: { label: "プレーオフ", className: "bg-red-600 text-white" },
+  finals: { label: "ファイナル", className: "bg-gold text-navy-dark" },
+};
 
 function TeamLabel({
   team,
@@ -29,12 +38,23 @@ export default function ScheduleGameCard({ game }: { game: ScheduleGame }) {
       ? "border-gold bg-gold/15"
       : "border-navy-light bg-gray-700/25";
 
+  const typeBadge = GAME_TYPE_BADGES[game.gameType];
+
   return (
     <div
       className={`flex flex-col gap-3 border-2 p-5 sm:flex-row sm:items-center sm:justify-between ${containerClass}`}
     >
       <div className="flex flex-col gap-1">
-        <p className="text-xs text-foreground/50">{game.jstDateTime}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs text-foreground/50">{game.jstDateTime}</p>
+          {typeBadge && (
+            <span
+              className={`px-2 py-0.5 text-[10px] font-bold ${typeBadge.className}`}
+            >
+              {typeBadge.label}
+            </span>
+          )}
+        </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <TeamLabel team={game.awayTeam} highlight={!game.isHome} />
           <span className="text-foreground/40">@</span>

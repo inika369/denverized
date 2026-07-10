@@ -7,10 +7,10 @@ import ScheduleGameCard from "./ScheduleGameCard";
 type Tab = "all" | "home" | "away" | "recent";
 
 const TABS: { value: Tab; label: string }[] = [
+  { value: "recent", label: "直近・今後" },
   { value: "all", label: "全試合" },
   { value: "home", label: "ホーム" },
   { value: "away", label: "アウェイ" },
-  { value: "recent", label: "直近・今後" },
 ];
 
 const RECENT_WINDOW_DAYS = 14;
@@ -27,7 +27,7 @@ function isRecentOrUpcoming(game: ScheduleGame, todayStr: string): boolean {
 }
 
 export default function ScheduleList({ games }: { games: ScheduleGame[] }) {
-  const [tab, setTab] = useState<Tab>("all");
+  const [tab, setTab] = useState<Tab>("recent");
 
   const todayStr = useMemo(
     () =>

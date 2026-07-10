@@ -166,7 +166,30 @@ export async function getWeeklySummary(
 const NBA_SCHEDULE_URL =
   "https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/2025/league/00_full_schedule.json";
 
+const NBA_SUMMER_LEAGUE_URL =
+  "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json";
+
+const NBA_FETCH_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  Referer: "https://www.nba.com/",
+};
+
 const NUGGETS_TEAM_ID = 1610612743;
+
+export type ScheduleGameType =
+  | "summer"
+  | "preseason"
+  | "regular"
+  | "playoff"
+  | "finals";
+
+const GAME_TYPE_BY_GID_PREFIX: Record<string, ScheduleGameType> = {
+  "001": "preseason",
+  "002": "regular",
+  "003": "playoff",
+  "004": "finals",
+};
 
 type NbaTeamSide = {
   tid: number;
@@ -207,24 +230,19 @@ export type ScheduleGame = {
   status: "scheduled" | "finished";
   arenaName: string;
   jstDateTime: string;
+  gameType: ScheduleGameType;
 };
 
-function formatJstDate(gdtutc: string, utctm: string): string {
-  const utcInstant = new Date(`${gdtutc}T${utctm}:00Z`);
-  if (Number.isNaN(utcInstant.getTime())) return gdtutc;
-
+function formatJstDateFromInstant(instant: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Tokyo",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(utcInstant);
+  }).format(instant);
 }
 
-function formatJstDateTime(gdtutc: string, utctm: string): string {
-  const utcInstant = new Date(`${gdtutc}T${utctm}:00Z`);
-  if (Number.isNaN(utcInstant.getTime())) return "";
-
+function formatJstDateTimeFromInstant(instant: Date): string {
   return new Intl.DateTimeFormat("ja-JP", {
     timeZone: "Asia/Tokyo",
     year: "numeric",
@@ -234,17 +252,13 @@ function formatJstDateTime(gdtutc: string, utctm: string): string {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  }).format(utcInstant);
+  }).format(instant);
 }
 
-export async function getNuggetsSchedule(): Promise<ScheduleGame[]> {
+async function fetchMainScheduleGames(): Promise<ScheduleGame[]> {
   try {
     const res = await fetch(NBA_SCHEDULE_URL, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Referer: "https://www.nba.com/",
-      },
+      headers: NBA_FETCH_HEADERS,
       cache: "no-store",
     });
     if (!res.ok) {
@@ -256,16 +270,19 @@ export async function getNuggetsSchedule(): Promise<ScheduleGame[]> {
     const games: ScheduleGame[] = [];
     for (const month of data.lscd) {
       for (const g of month.mscd.g) {
-        // Regular season games only (gid prefix "002"); excludes preseason ("001").
-        if (!g.gid.startsWith("002")) continue;
+        const gameType = GAME_TYPE_BY_GID_PREFIX[g.gid.slice(0, 3)];
+        if (!gameType) continue;
         if (g.v.tid !== NUGGETS_TEAM_ID && g.h.tid !== NUGGETS_TEAM_ID) continue;
 
         const isHome = g.h.tid === NUGGETS_TEAM_ID;
         const finished = g.st === "3";
+        const utcInstant = new Date(`${g.gdtutc}T${g.utctm}:00Z`);
 
         games.push({
           gameId: g.gid,
-          date: formatJstDate(g.gdtutc, g.utctm),
+          date: Number.isNaN(utcInstant.getTime())
+            ? g.gdte
+            : formatJstDateFromInstant(utcInstant),
           homeTeam: { name: `${g.h.tc} ${g.h.tn}`, abbreviation: g.h.ta },
           awayTeam: { name: `${g.v.tc} ${g.v.tn}`, abbreviation: g.v.ta },
           homeScore: finished && g.h.s ? Number(g.h.s) : null,
@@ -273,12 +290,14 @@ export async function getNuggetsSchedule(): Promise<ScheduleGame[]> {
           isHome,
           status: finished ? "finished" : "scheduled",
           arenaName: g.an,
-          jstDateTime: formatJstDateTime(g.gdtutc, g.utctm),
+          jstDateTime: Number.isNaN(utcInstant.getTime())
+            ? ""
+            : formatJstDateTimeFromInstant(utcInstant),
+          gameType,
         });
       }
     }
 
-    games.sort((a, b) => a.date.localeCompare(b.date));
     return games;
   } catch (error) {
     console.error(
@@ -287,4 +306,113 @@ export async function getNuggetsSchedule(): Promise<ScheduleGame[]> {
     );
     return [];
   }
+}
+
+type NbaV2Team = {
+  teamId: number;
+  teamTricode: string;
+  teamName: string;
+  teamCity: string;
+  score: number;
+};
+
+type NbaV2Game = {
+  gameId: string;
+  gameDateTimeUTC?: string;
+  gameStatus: number;
+  gameLabel?: string;
+  gameSubLabel?: string;
+  arenaCity?: string;
+  homeTeam: NbaV2Team;
+  awayTeam: NbaV2Team;
+  arenaName?: string;
+};
+
+type NbaV2Response = {
+  leagueSchedule?: {
+    gameDates?: { gameDate: string; games?: NbaV2Game[] }[];
+  };
+};
+
+function isSummerLeagueGame(g: NbaV2Game): boolean {
+  const label = `${g.gameLabel ?? ""} ${g.gameSubLabel ?? ""}`.toLowerCase();
+  return label.includes("summer league") || g.arenaCity === "Las Vegas";
+}
+
+// Best-effort: NBA Summer League isn't part of the season schedule feed
+// above, and this CDN endpoint (which otherwise mirrors the full season)
+// has been unreliable/blocked in testing. Any failure here is swallowed
+// and simply yields no summer-league games; entries are also filtered
+// down to genuine Summer League games only, since this feed's regular
+// content would otherwise duplicate the main schedule fetch.
+async function fetchSummerLeagueGames(): Promise<ScheduleGame[]> {
+  try {
+    const res = await fetch(NBA_SUMMER_LEAGUE_URL, {
+      headers: NBA_FETCH_HEADERS,
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      throw new Error(
+        `Failed to fetch summer league schedule: ${res.status}`
+      );
+    }
+
+    const data: NbaV2Response = await res.json();
+    const games: ScheduleGame[] = [];
+
+    for (const gameDate of data.leagueSchedule?.gameDates ?? []) {
+      for (const g of gameDate.games ?? []) {
+        if (!isSummerLeagueGame(g)) continue;
+
+        const isNuggetsHome = g.homeTeam?.teamId === NUGGETS_TEAM_ID;
+        const isNuggetsAway = g.awayTeam?.teamId === NUGGETS_TEAM_ID;
+        if (!isNuggetsHome && !isNuggetsAway) continue;
+        if (!g.gameDateTimeUTC) continue;
+
+        const utcInstant = new Date(g.gameDateTimeUTC);
+        if (Number.isNaN(utcInstant.getTime())) continue;
+
+        const finished = g.gameStatus === 3;
+
+        games.push({
+          gameId: g.gameId,
+          date: formatJstDateFromInstant(utcInstant),
+          homeTeam: {
+            name: `${g.homeTeam.teamCity} ${g.homeTeam.teamName}`,
+            abbreviation: g.homeTeam.teamTricode,
+          },
+          awayTeam: {
+            name: `${g.awayTeam.teamCity} ${g.awayTeam.teamName}`,
+            abbreviation: g.awayTeam.teamTricode,
+          },
+          homeScore: finished ? (g.homeTeam.score ?? null) : null,
+          awayScore: finished ? (g.awayTeam.score ?? null) : null,
+          isHome: isNuggetsHome,
+          status: finished ? "finished" : "scheduled",
+          arenaName: g.arenaName ?? "",
+          jstDateTime: formatJstDateTimeFromInstant(utcInstant),
+          gameType: "summer",
+        });
+      }
+    }
+
+    return games;
+  } catch (error) {
+    console.error(
+      "[getNuggetsSchedule] failed to fetch summer league schedule:",
+      error
+    );
+    return [];
+  }
+}
+
+export async function getNuggetsSchedule(): Promise<ScheduleGame[]> {
+  const [mainGames, summerLeagueGames] = await Promise.all([
+    fetchMainScheduleGames(),
+    fetchSummerLeagueGames(),
+  ]);
+
+  const games = [...summerLeagueGames, ...mainGames];
+  games.sort((a, b) => a.date.localeCompare(b.date));
+  return games;
 }
