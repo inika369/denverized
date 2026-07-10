@@ -162,3 +162,129 @@ export async function getWeeklySummary(
     return null;
   }
 }
+
+const NBA_SCHEDULE_URL =
+  "https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/2025/league/00_full_schedule.json";
+
+const NUGGETS_TEAM_ID = 1610612743;
+
+type NbaTeamSide = {
+  tid: number;
+  ta: string;
+  tn: string;
+  tc: string;
+  s: string;
+};
+
+type NbaGame = {
+  gid: string;
+  gdte: string;
+  an: string;
+  st: string;
+  gdtutc: string;
+  utctm: string;
+  v: NbaTeamSide;
+  h: NbaTeamSide;
+};
+
+type NbaScheduleResponse = {
+  lscd: { mscd: { mon: string; g: NbaGame[] } }[];
+};
+
+export type ScheduleTeam = {
+  name: string;
+  abbreviation: string;
+};
+
+export type ScheduleGame = {
+  gameId: string;
+  date: string;
+  homeTeam: ScheduleTeam;
+  awayTeam: ScheduleTeam;
+  homeScore: number | null;
+  awayScore: number | null;
+  isHome: boolean;
+  status: "scheduled" | "finished";
+  arenaName: string;
+  jstDateTime: string;
+};
+
+function formatJstDate(gdtutc: string, utctm: string): string {
+  const utcInstant = new Date(`${gdtutc}T${utctm}:00Z`);
+  if (Number.isNaN(utcInstant.getTime())) return gdtutc;
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(utcInstant);
+}
+
+function formatJstDateTime(gdtutc: string, utctm: string): string {
+  const utcInstant = new Date(`${gdtutc}T${utctm}:00Z`);
+  if (Number.isNaN(utcInstant.getTime())) return "";
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(utcInstant);
+}
+
+export async function getNuggetsSchedule(): Promise<ScheduleGame[]> {
+  try {
+    const res = await fetch(NBA_SCHEDULE_URL, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Referer: "https://www.nba.com/",
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch NBA schedule: ${res.status}`);
+    }
+
+    const data: NbaScheduleResponse = await res.json();
+
+    const games: ScheduleGame[] = [];
+    for (const month of data.lscd) {
+      for (const g of month.mscd.g) {
+        // Regular season games only (gid prefix "002"); excludes preseason ("001").
+        if (!g.gid.startsWith("002")) continue;
+        if (g.v.tid !== NUGGETS_TEAM_ID && g.h.tid !== NUGGETS_TEAM_ID) continue;
+
+        const isHome = g.h.tid === NUGGETS_TEAM_ID;
+        const finished = g.st === "3";
+
+        games.push({
+          gameId: g.gid,
+          date: formatJstDate(g.gdtutc, g.utctm),
+          homeTeam: { name: `${g.h.tc} ${g.h.tn}`, abbreviation: g.h.ta },
+          awayTeam: { name: `${g.v.tc} ${g.v.tn}`, abbreviation: g.v.ta },
+          homeScore: finished && g.h.s ? Number(g.h.s) : null,
+          awayScore: finished && g.v.s ? Number(g.v.s) : null,
+          isHome,
+          status: finished ? "finished" : "scheduled",
+          arenaName: g.an,
+          jstDateTime: formatJstDateTime(g.gdtutc, g.utctm),
+        });
+      }
+    }
+
+    games.sort((a, b) => a.date.localeCompare(b.date));
+    return games;
+  } catch (error) {
+    console.error(
+      "[getNuggetsSchedule] failed to fetch NBA schedule:",
+      error
+    );
+    return [];
+  }
+}
