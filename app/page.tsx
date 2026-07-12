@@ -66,9 +66,9 @@ export default async function Home() {
             src="/denverized-logo.png"
             alt="DENVERIZED.JP"
             width={1672}
-            height={941}
+            height={296}
             priority
-            className="h-auto w-full max-w-[280px] sm:max-w-md"
+            className="relative z-10 h-auto w-full max-w-[280px] sm:max-w-md"
           />
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Link
