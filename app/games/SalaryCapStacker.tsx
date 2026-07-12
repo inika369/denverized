@@ -273,17 +273,14 @@ function GameCanvas({
       return (clientX - rect.left) * scale;
     }
 
-    function handlePointerMove(e: PointerEvent) {
+    function updateDropX(clientX: number) {
       const radius = PLAYER_LEVELS[nextLevel - 1].radius;
-      const x = getCanvasX(e.clientX);
+      const x = getCanvasX(clientX);
       dropX = Math.min(Math.max(x, radius), WIDTH - radius);
     }
 
-    function handlePointerDown(e: PointerEvent) {
+    function dropCurrentBall() {
       if (isOver || !canDrop) return;
-      const radius = PLAYER_LEVELS[nextLevel - 1].radius;
-      const x = getCanvasX(e.clientX);
-      dropX = Math.min(Math.max(x, radius), WIDTH - radius);
       canDrop = false;
       spawnBall(nextLevel, dropX, SPAWN_Y);
       nextLevel = randomStartingLevel();
@@ -292,8 +289,28 @@ function GameCanvas({
       }, DROP_COOLDOWN_MS);
     }
 
+    function handlePointerMove(e: PointerEvent) {
+      updateDropX(e.clientX);
+    }
+
+    function handlePointerDown(e: PointerEvent) {
+      updateDropX(e.clientX);
+      // Touch: only track position here; the ball drops on release (pointerup)
+      // so the player can drag to aim before letting go.
+      if (e.pointerType === "touch") return;
+      // Mouse (and pen): drop immediately, matching the existing click-to-drop feel.
+      dropCurrentBall();
+    }
+
+    function handlePointerUp(e: PointerEvent) {
+      if (e.pointerType !== "touch") return;
+      updateDropX(e.clientX);
+      dropCurrentBall();
+    }
+
     canvas.addEventListener("pointermove", handlePointerMove);
     canvas.addEventListener("pointerdown", handlePointerDown);
+    canvas.addEventListener("pointerup", handlePointerUp);
 
     let rafId: number;
     function draw() {
@@ -362,6 +379,7 @@ function GameCanvas({
       Matter.Events.off(engine, "afterUpdate", onAfterUpdate);
       canvas.removeEventListener("pointermove", handlePointerMove);
       canvas.removeEventListener("pointerdown", handlePointerDown);
+      canvas.removeEventListener("pointerup", handlePointerUp);
       Matter.Composite.clear(world, false);
       Matter.Engine.clear(engine);
     };
