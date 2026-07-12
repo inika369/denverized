@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import NewsCard from "./components/NewsCard";
 import FeatureCard from "./components/FeatureCard";
@@ -61,12 +62,14 @@ export default async function Home() {
       {/* Hero */}
       <section className="crt-lines border-b-4 border-gold bg-navy px-4 py-10 text-center sm:px-6 sm:py-14">
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-4">
-          <h1 className="font-sans text-3xl font-black text-gold sm:text-5xl">
-            デンバライズド.JP
-          </h1>
-          <p className="text-sm text-foreground/80 sm:text-base">
-            デンバー・ナゲッツ情報をもっと深く
-          </p>
+          <Image
+            src="/denverized-logo.png"
+            alt="DENVERIZED.JP"
+            width={1672}
+            height={941}
+            priority
+            className="h-auto w-full max-w-[280px] sm:max-w-md"
+          />
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Link
               href="/news"
