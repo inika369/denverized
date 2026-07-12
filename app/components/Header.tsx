@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { href: "/features", label: "特集" },
   { href: "/schedule", label: "スケジュール" },
   { href: "/players", label: "選手紹介" },
+  { href: "/games", label: "ゲーム" },
 ];
 
 export default function Header() {
