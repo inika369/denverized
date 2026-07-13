@@ -12,7 +12,7 @@ export default function GamesPage() {
         わくわくサラリーマネジメント
       </h1>
       <p className="mb-8 text-sm text-foreground/60">
-        サラリーキャップを超えないように強いロスターを作ろう！
+        サラリーに気を付けて強いロスターを作ろう！
       </p>
       <SalaryCapStacker />
     </div>

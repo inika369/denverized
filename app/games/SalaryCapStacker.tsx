@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Matter from "matter-js";
 import {
   MAX_LEVEL,
@@ -103,29 +104,7 @@ function drawBall(
   ctx.strokeStyle = "#fec524";
   ctx.stroke();
 
-  if (img) {
-    // The image already shows the jersey number, so only overlay the
-    // surname. A translucent backing keeps it legible over any artwork.
-    const fontSize = Math.round(r * 0.22);
-    const labelY = r * 0.42;
-    ctx.font = `bold ${fontSize}px sans-serif`;
-    const textWidth = ctx.measureText(data.surname).width;
-    const paddingX = fontSize * 0.5;
-    const paddingY = fontSize * 0.35;
-
-    ctx.fillStyle = "rgba(14, 34, 64, 0.65)";
-    ctx.fillRect(
-      -textWidth / 2 - paddingX,
-      labelY - fontSize / 2 - paddingY,
-      textWidth + paddingX * 2,
-      fontSize + paddingY * 2
-    );
-
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "#f5f5f0";
-    ctx.fillText(data.surname, 0, labelY);
-  } else {
+  if (!img) {
     ctx.fillStyle = "#f5f5f0";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -484,50 +463,100 @@ export default function SalaryCapStacker() {
   };
 
   return (
-    <div className="mx-auto max-w-[380px]">
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <div className="pixel-shadow-sm flex-1 border-2 border-navy-light bg-navy px-4 py-2">
-          <p className="text-[10px] text-foreground/50">スコア</p>
-          <p className="font-pixel text-lg text-gold">{score}</p>
+    <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-[380px]">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div className="pixel-shadow-sm flex-1 border-2 border-navy-light bg-navy px-4 py-2">
+            <p className="text-[10px] text-foreground/50">スコア</p>
+            <p className="font-pixel text-lg text-gold">{score}</p>
+          </div>
+          <div className="pixel-shadow-sm flex-1 border-2 border-navy-light bg-navy px-4 py-2 text-right">
+            <p className="text-[10px] text-foreground/50">ハイスコア</p>
+            <p className="font-pixel text-lg text-foreground">{highScore}</p>
+          </div>
         </div>
-        <div className="pixel-shadow-sm flex-1 border-2 border-navy-light bg-navy px-4 py-2 text-right">
-          <p className="text-[10px] text-foreground/50">ハイスコア</p>
-          <p className="font-pixel text-lg text-foreground">{highScore}</p>
+
+        <div className="relative">
+          <GameCanvas
+            key={resetKey}
+            onScoreChange={handleScoreChange}
+            onGameOver={handleGameOver}
+          />
+
+          {gameOver && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 border-2 border-gold bg-navy-dark/95 p-6 text-center">
+              <p className="text-base font-bold text-gold sm:text-lg">
+                2ndエプロンを超えました。
+                <br />
+                覚悟を決めて優勝するかサラリーダンプしてください
+              </p>
+              <div>
+                <p className="text-xs text-foreground/60">最終スコア</p>
+                <p className="font-pixel text-2xl text-foreground">{score}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleRestart}
+                className="mt-2 bg-gold px-5 py-2 text-xs font-bold text-navy-dark transition-transform hover:-translate-y-0.5"
+              >
+                もう一度プレイ
+              </button>
+            </div>
+          )}
         </div>
+
+        <p className="mt-4 text-center text-xs text-foreground/50">
+          画面をなぞって位置を調整し、タップ／クリックで<s>果物</s>選手を落とそう。同じ選手同士がぶつかると合体するよ。
+        </p>
       </div>
 
-      <div className="relative">
-        <GameCanvas
-          key={resetKey}
-          onScoreChange={handleScoreChange}
-          onGameOver={handleGameOver}
-        />
+      <div className="mt-10">
+        <h2 className="font-pixel mb-6 text-center text-xs text-gold sm:text-sm">
+          登場選手一覧
+        </h2>
+        <div className="grid grid-cols-3 gap-4 sm:grid-cols-5 md:grid-cols-9">
+          {PLAYER_LEVELS.map((player) => (
+            <LegendAvatar key={player.level} player={player} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-        {gameOver && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 border-2 border-gold bg-navy-dark/95 p-6 text-center">
-            <p className="text-base font-bold text-gold sm:text-lg">
-              2ndエプロンを超えました。
-              <br />
-              覚悟を決めて優勝するかサラリーダンプしてください
-            </p>
-            <div>
-              <p className="text-xs text-foreground/60">最終スコア</p>
-              <p className="font-pixel text-2xl text-foreground">{score}</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleRestart}
-              className="mt-2 bg-gold px-5 py-2 text-xs font-bold text-navy-dark transition-transform hover:-translate-y-0.5"
-            >
-              もう一度プレイ
-            </button>
+function LegendAvatar({ player }: { player: PlayerLevel }) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  return (
+    <div className="flex flex-col items-center gap-2 text-center">
+      <div className="h-14 w-14 overflow-hidden rounded-full border-2 border-gold">
+        {imageFailed ? (
+          <div
+            className="flex h-full w-full items-center justify-center"
+            style={{ backgroundColor: player.color }}
+          >
+            <span className="text-xs font-bold text-foreground">
+              #{player.number}
+            </span>
           </div>
+        ) : (
+          <Image
+            src={`/players/player-${player.level}.png`}
+            alt={player.name}
+            width={56}
+            height={56}
+            className="h-full w-full object-cover"
+            onError={() => setImageFailed(true)}
+          />
         )}
       </div>
-
-      <p className="mt-4 text-center text-xs text-foreground/50">
-        画面をなぞって位置を調整し、タップ／クリックで<s>果物</s>選手を落とそう。同じ選手同士がぶつかると合体するよ。
-      </p>
+      <div>
+        <p className="text-[9px] font-bold text-gold">Lv.{player.level}</p>
+        <p className="text-[11px] font-bold leading-tight text-foreground">
+          {player.name}
+        </p>
+        <p className="text-[10px] text-foreground/50">#{player.number}</p>
+      </div>
     </div>
   );
 }
