@@ -14,6 +14,15 @@ const HEIGHT = 560;
 const WALL_THICKNESS = 24;
 const CAP_LINE_Y = 90;
 const SPAWN_Y = 50;
+
+// Purely decorative threshold lines below the game-over line; they have no
+// effect on gameplay and are evenly spaced between the cap line and the
+// point 1/4 up from the bottom of the play area.
+const DECORATIVE_LINES_END_Y = HEIGHT * 0.75;
+const DECORATIVE_LINE_SPAN = DECORATIVE_LINES_END_Y - CAP_LINE_Y;
+const FIRST_APRON_LINE_Y = CAP_LINE_Y + DECORATIVE_LINE_SPAN * (1 / 4);
+const TAX_LINE_Y = CAP_LINE_Y + DECORATIVE_LINE_SPAN * (2 / 4);
+const SALARY_CAP_LINE_Y = CAP_LINE_Y + DECORATIVE_LINE_SPAN * (3 / 4);
 const DROP_COOLDOWN_MS = 400;
 const OVERFLOW_GRACE_MS = 1000;
 const OVERFLOW_LIMIT_MS = 1500;
@@ -37,6 +46,28 @@ type MergeEffect = {
 
 function randomStartingLevel(): number {
   return 1 + Math.floor(Math.random() * MAX_STARTING_LEVEL);
+}
+
+function drawThresholdLine(
+  ctx: CanvasRenderingContext2D,
+  y: number,
+  label: string
+) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(245, 245, 240, 0.35)";
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.moveTo(0, y);
+  ctx.lineTo(WIDTH, y);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = "rgba(245, 245, 240, 0.45)";
+  ctx.font = "bold 10px sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "bottom";
+  ctx.fillText(label, 6, y - 3);
 }
 
 function drawBall(
@@ -333,7 +364,11 @@ function GameCanvas({
       ctx!.font = "bold 11px sans-serif";
       ctx!.textAlign = "left";
       ctx!.textBaseline = "bottom";
-      ctx!.fillText("サラリーキャップ", 6, CAP_LINE_Y - 4);
+      ctx!.fillText("2ndエプロン", 6, CAP_LINE_Y - 4);
+
+      drawThresholdLine(ctx!, FIRST_APRON_LINE_Y, "1stエプロン");
+      drawThresholdLine(ctx!, TAX_LINE_Y, "タックスライン");
+      drawThresholdLine(ctx!, SALARY_CAP_LINE_Y, "サラリーキャップ");
 
       if (!isOver) {
         drawBall(ctx!, images, PLAYER_LEVELS[nextLevel - 1], dropX, SPAWN_Y, 0.55);
@@ -447,10 +482,10 @@ export default function SalaryCapStacker() {
 
         {gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 border-2 border-gold bg-navy-dark/95 p-6 text-center">
-            <p className="font-pixel text-base text-gold sm:text-lg">
-              サラリーキャップ
+            <p className="text-base font-bold text-gold sm:text-lg">
+              2ndエプロンを超えました。
               <br />
-              オーバー！
+              覚悟を決めて優勝するかサラリーダンプしてください
             </p>
             <div>
               <p className="text-xs text-foreground/60">最終スコア</p>
@@ -468,7 +503,7 @@ export default function SalaryCapStacker() {
       </div>
 
       <p className="mt-4 text-center text-xs text-foreground/50">
-        画面をなぞって位置を調整し、タップ／クリックで玉を落とそう。同じ選手同士がぶつかると合体するよ。
+        画面をなぞって位置を調整し、タップ／クリックで<s>果物</s>選手を落とそう。同じ選手同士がぶつかると合体するよ。
       </p>
     </div>
   );
