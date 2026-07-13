@@ -16,13 +16,14 @@ const CAP_LINE_Y = 90;
 const SPAWN_Y = 50;
 
 // Purely decorative threshold lines below the game-over line; they have no
-// effect on gameplay and are evenly spaced between the cap line and the
-// point 1/4 up from the bottom of the play area.
+// effect on gameplay. Spacing is half of the original even-quarters layout,
+// so the four lines sit closer together near the top of the play area.
 const DECORATIVE_LINES_END_Y = HEIGHT * 0.75;
-const DECORATIVE_LINE_SPAN = DECORATIVE_LINES_END_Y - CAP_LINE_Y;
-const FIRST_APRON_LINE_Y = CAP_LINE_Y + DECORATIVE_LINE_SPAN * (1 / 4);
-const TAX_LINE_Y = CAP_LINE_Y + DECORATIVE_LINE_SPAN * (2 / 4);
-const SALARY_CAP_LINE_Y = CAP_LINE_Y + DECORATIVE_LINE_SPAN * (3 / 4);
+const ORIGINAL_DECORATIVE_LINE_GAP = (DECORATIVE_LINES_END_Y - CAP_LINE_Y) / 4;
+const DECORATIVE_LINE_GAP = ORIGINAL_DECORATIVE_LINE_GAP / 2;
+const FIRST_APRON_LINE_Y = CAP_LINE_Y + DECORATIVE_LINE_GAP;
+const TAX_LINE_Y = CAP_LINE_Y + DECORATIVE_LINE_GAP * 2;
+const SALARY_CAP_LINE_Y = CAP_LINE_Y + DECORATIVE_LINE_GAP * 3;
 const DROP_COOLDOWN_MS = 400;
 const OVERFLOW_GRACE_MS = 1000;
 const OVERFLOW_LIMIT_MS = 1500;
@@ -102,7 +103,29 @@ function drawBall(
   ctx.strokeStyle = "#fec524";
   ctx.stroke();
 
-  if (!img) {
+  if (img) {
+    // The image already shows the jersey number, so only overlay the
+    // surname. A translucent backing keeps it legible over any artwork.
+    const fontSize = Math.round(r * 0.22);
+    const labelY = r * 0.42;
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    const textWidth = ctx.measureText(data.surname).width;
+    const paddingX = fontSize * 0.5;
+    const paddingY = fontSize * 0.35;
+
+    ctx.fillStyle = "rgba(14, 34, 64, 0.65)";
+    ctx.fillRect(
+      -textWidth / 2 - paddingX,
+      labelY - fontSize / 2 - paddingY,
+      textWidth + paddingX * 2,
+      fontSize + paddingY * 2
+    );
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#f5f5f0";
+    ctx.fillText(data.surname, 0, labelY);
+  } else {
     ctx.fillStyle = "#f5f5f0";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
