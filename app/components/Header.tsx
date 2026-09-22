@@ -3,6 +3,7 @@ import Link from "next/link";
 const NAV_ITEMS = [
   { href: "/news", label: "ニュース" },
   { href: "/features", label: "特集" },
+  { href: "/moments", label: "モーメント" },
   { href: "/schedule", label: "スケジュール" },
   { href: "/players", label: "選手紹介" },
   { href: "/games", label: "ゲーム" },

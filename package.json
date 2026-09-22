@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:moments": "node scripts/check-moment-videos.mts"
   },
   "dependencies": {
     "@types/matter-js": "^0.20.2",
